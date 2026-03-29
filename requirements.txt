@@ -1,0 +1,14 @@
+openai
+psycopg2-binary
+pgvector
+tiktoken
+langchain-text-splitters
+sentence-transformers
+python-dotenv
+numpy
+tqdm
+pdfplumber
+docx2txt
+fastapi
+uvicorn[standard]
+python-multipart

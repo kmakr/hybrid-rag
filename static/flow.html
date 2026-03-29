@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contextual RAG — Flow Diagram</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3352;
+      --accent: #4f7df3;
+      --accent2: #a78bfa;
+      --accent3: #34d399;
+      --accent4: #f59e0b;
+      --text: #e8eaf6;
+      --muted: #8892b0;
+      --font: 'Inter', system-ui, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      padding: 40px 24px 80px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    h1 span { color: var(--accent); }
+
+    .subtitle {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-bottom: 48px;
+    }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 40px;
+    }
+
+    .tab {
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      transition: all 0.2s;
+    }
+
+    .tab.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ── Flow layout ── */
+    .flow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    /* ── Step card ── */
+    .step {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 24px;
+      position: relative;
+    }
+
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .step-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .step-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .step-file {
+      margin-left: auto;
+      font-size: 0.7rem;
+      color: var(--muted);
+      background: var(--surface2);
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      font-family: monospace;
+    }
+
+    .step-body {
+      font-size: 0.83rem;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+
+    /* ── Example box ── */
+    .example {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .example-label {
+      padding: 5px 12px;
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .example-body {
+      padding: 12px 14px;
+      font-size: 0.78rem;
+      line-height: 1.7;
+      font-family: monospace;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* ── Arrow connector ── */
+    .arrow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 6px 0;
+      color: var(--border);
+      font-size: 1.2rem;
+      gap: 2px;
+    }
+
+    .arrow-label {
+      font-size: 0.68rem;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+
+    /* ── Branch layout ── */
+    .branch {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      width: 100%;
+    }
+
+    .branch-wrapper {
+      width: 100%;
+    }
+
+    .branch-header {
+      text-align: center;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .merge-arrow {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 60px;
+      padding: 6px 0;
+      color: var(--border);
+      font-size: 1.1rem;
+    }
+
+    /* colour themes per step */
+    .c-blue  .step-num { background: rgba(79,125,243,0.15); color: #4f7df3; }
+    .c-blue  .step-header { border-left: 3px solid #4f7df3; padding-left: 12px; margin-left: -4px; }
+    .c-blue  .example-label { background: rgba(79,125,243,0.08); color: #4f7df3; }
+
+    .c-purple .step-num { background: rgba(167,139,250,0.15); color: #a78bfa; }
+    .c-purple .step-header { border-left: 3px solid #a78bfa; padding-left: 12px; margin-left: -4px; }
+    .c-purple .example-label { background: rgba(167,139,250,0.08); color: #a78bfa; }
+
+    .c-green .step-num { background: rgba(52,211,153,0.15); color: #34d399; }
+    .c-green .step-header { border-left: 3px solid #34d399; padding-left: 12px; margin-left: -4px; }
+    .c-green .example-label { background: rgba(52,211,153,0.08); color: #34d399; }
+
+    .c-amber .step-num { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .c-amber .step-header { border-left: 3px solid #f59e0b; padding-left: 12px; margin-left: -4px; }
+    .c-amber .example-label { background: rgba(245,158,11,0.08); color: #f59e0b; }
+
+    .c-red .step-num { background: rgba(239,68,68,0.15); color: #ef4444; }
+    .c-red .step-header { border-left: 3px solid #ef4444; padding-left: 12px; margin-left: -4px; }
+    .c-red .example-label { background: rgba(239,68,68,0.08); color: #ef4444; }
+
+    .hl { color: var(--text); font-weight: 500; }
+    .hl-blue { color: #4f7df3; }
+    .hl-purple { color: #a78bfa; }
+    .hl-green { color: #34d399; }
+    .hl-amber { color: #f59e0b; }
+    .hl-red { color: #ef4444; }
+  </style>
+</head>
+<body>
+
+<h1>Contextual <span>RAG</span> — System Flow</h1>
+<p class="subtitle">HKJC Chatbot · end-to-end architecture with examples</p>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('ingest')">📥 Ingest Pipeline</div>
+  <div class="tab" onclick="switchTab('query')">🔍 Query Pipeline</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     INGEST PANEL
+════════════════════════════════════════════════════════════════════════════ -->
+<div class="panel active" id="panel-ingest">
+<div class="flow">
+
+  <!-- Step 1: Load -->
+  <div class="step c-blue">
+    <div class="step-header">
+      <div class="step-num">1</div>
+      <div class="step-title">Load Document</div>
+      <div class="step-file">chunker.py</div>
+    </div>
+    <div class="step-body">
+      Files are read from <code>data/</code>. PDFs are extracted page-by-page via <strong>pdfplumber</strong>, DOCX via <strong>docx2txt</strong>, and plain text files are read directly.
+    </div>
+    <div class="example">
+      <div class="example-label">Input</div>
+      <div class="example-body"><span class="hl">data/hkjc_rules_2024.pdf</span>  (42 pages)</div>
+    </div>
+  </div>
+
+  <div class="arrow">↓<div class="arrow-label">full text string</div></div>
+
+  <!-- Step 2: Chunk -->
+  <div class="step c-blue">
+    <div class="step-header">
+      <div class="step-num">2</div>
+      <div class="step-title">Chunk Document</div>
+      <div class="step-file">chunker.py</div>
+    </div>
+    <div class="step-body">
+      The full text is split using <strong>RecursiveCharacterTextSplitter</strong> with chunk_size=<span class="hl">500</span> chars and overlap=<span class="hl">50</span> chars. Each chunk gets a zero-based <code>chunk_index</code> within its source document.
+    </div>
+    <div class="example">
+      <div class="example-label">Output — 3 of 87 chunks</div>
+      <div class="example-body"><span class="hl-blue">chunk #0</span>  "Chapter 1 – Definitions. In these Rules, unless the context otherwise requires, the following expressions shall have the meanings..."
+<span class="hl-blue">chunk #1</span>  "...meanings assigned to them. 'Horse' means any horse registered with the Club. 'Race Meeting' means any race meeting..."
+<span class="hl-blue">chunk #2</span>  "...approved by the Stewards. An Owner must ensure their horse is properly identified before..."</div>
+    </div>
+  </div>
+
+  <div class="arrow">↓<div class="arrow-label">87 raw chunks</div></div>
+
+  <!-- Step 3: Contextualize -->
+  <div class="step c-purple">
+    <div class="step-header">
+      <div class="step-num">3</div>
+      <div class="step-title">Contextualize Chunks</div>
+      <div class="step-file">contextualizer.py</div>
+    </div>
+    <div class="step-body">
+      Each chunk is sent to <strong>MiniMax M2.7</strong> via OpenRouter along with the full parent document. The model generates a short situating description. Runs in parallel across <span class="hl">4 threads</span> to speed up ingestion.
+    </div>
+    <div class="example">
+      <div class="example-label">Prompt sent to MiniMax M2.7</div>
+      <div class="example-body"><span class="hl-purple">&lt;document&gt;</span>
+Chapter 1 – Definitions. In these Rules...
+[full 42-page document]
+<span class="hl-purple">&lt;/document&gt;</span>
+Here is the chunk we want to situate:
+<span class="hl-purple">&lt;chunk&gt;</span>
+An Owner must ensure their horse is properly identified before...
+<span class="hl-purple">&lt;/chunk&gt;</span>
+Please give a short succinct context to situate this chunk...</div>
+    </div>
+    <div style="height:10px"></div>
+    <div class="example">
+      <div class="example-label">Model response (context)</div>
+      <div class="example-body"><span class="hl-purple">"This chunk is from Chapter 3 of the HKJC Rules of Racing, covering owner obligations regarding horse identification and registration requirements prior to race entry."</span></div>
+    </div>
+    <div style="height:10px"></div>
+    <div class="example">
+      <div class="example-label">full_text stored in DB (content + context)</div>
+      <div class="example-body">An Owner must ensure their horse is properly identified before...
+
+<span class="hl-purple">This chunk is from Chapter 3 of the HKJC Rules of Racing, covering owner obligations regarding horse identification and registration requirements prior to race entry.</span></div>
+    </div>
+  </div>
+
+  <div class="arrow">↓<div class="arrow-label">87 enriched chunks</div></div>
+
+  <!-- Step 4: Embed -->
+  <div class="step c-green">
+    <div class="step-header">
+      <div class="step-num">4</div>
+      <div class="step-title">Generate Embeddings</div>
+      <div class="step-file">embedder.py</div>
+    </div>
+    <div class="step-body">
+      The <code>full_text</code> (content + context) of every chunk is encoded locally using <strong>all-MiniLM-L6-v2</strong> via sentence-transformers. Produces a 384-dimensional float vector. No API call — runs on your machine.
+    </div>
+    <div class="example">
+      <div class="example-label">Output</div>
+      <div class="example-body">chunk #2  →  <span class="hl-green">[0.0231, -0.1847, 0.0563, 0.2901, ..., -0.0412]</span>  <span style="color:var(--muted)">(384 floats)</span></div>
+    </div>
+  </div>
+
+  <div class="arrow">↓<div class="arrow-label">vectors + metadata</div></div>
+
+  <!-- Step 5: Store -->
+  <div class="step c-amber">
+    <div class="step-header">
+      <div class="step-num">5</div>
+      <div class="step-title">Store in PostgreSQL</div>
+      <div class="step-file">db.py</div>
+    </div>
+    <div class="step-body">
+      Each chunk is inserted into the <code>chunks</code> table. PostgreSQL automatically builds a <strong>tsvector</strong> column for full-text search. Two indexes are maintained: <strong>ivfflat</strong> for vector search and <strong>GIN</strong> for full-text.
+    </div>
+    <div class="example">
+      <div class="example-label">Row stored in chunks table</div>
+      <div class="example-body"><span class="hl-amber">id</span>             42
+<span class="hl-amber">source_document</span>  "hkjc_rules_2024.pdf"
+<span class="hl-amber">chunk_index</span>    2
+<span class="hl-amber">content</span>        "An Owner must ensure their horse is properly identified before..."
+<span class="hl-amber">contextualized_content</span>  "This chunk is from Chapter 3..."
+<span class="hl-amber">full_text</span>      "An Owner must ensure... \n\n This chunk is from Chapter 3..."
+<span class="hl-amber">embedding</span>      [0.0231, -0.1847, ...]   ← pgvector(384)
+<span class="hl-amber">tsv</span>            'chapter':8 'horse':5 'identif':12 'owner':2 ...  ← auto-generated</div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     QUERY PANEL
+════════════════════════════════════════════════════════════════════════════ -->
+<div class="panel" id="panel-query">
+<div class="flow">
+
+  <!-- Step 1: User question -->
+  <div class="step c-blue">
+    <div class="step-header">
+      <div class="step-num">1</div>
+      <div class="step-title">User Question</div>
+      <div class="step-file">api.py / query.py</div>
+    </div>
+    <div class="step-body">
+      Question arrives from the chat UI (POST <code>/chat</code>) or the CLI script. Parameters <code>k</code> and <code>rerank</code> control retrieval depth and reranking.
+    </div>
+    <div class="example">
+      <div class="example-label">Request</div>
+      <div class="example-body">question: <span class="hl-blue">"What are the identification requirements for horse owners?"</span>
+k: 5,  rerank: true</div>
+    </div>
+  </div>
+
+  <div class="arrow">↓<div class="arrow-label">embed question</div></div>
+
+  <!-- Step 2: Embed query -->
+  <div class="step c-blue">
+    <div class="step-header">
+      <div class="step-num">2</div>
+      <div class="step-title">Embed Query</div>
+      <div class="step-file">embedder.py</div>
+    </div>
+    <div class="step-body">
+      The question is encoded with the same <strong>all-MiniLM-L6-v2</strong> model used at ingest time, producing a 384-dim query vector.
+    </div>
+    <div class="example">
+      <div class="example-label">Output</div>
+      <div class="example-body">query vector → <span class="hl-blue">[0.0819, -0.2341, 0.1102, ...]</span>  (384 floats)</div>
+    </div>
+  </div>
+
+  <div class="arrow">↓<div class="arrow-label">parallel search</div></div>
+
+  <!-- Step 3: Hybrid search (two branches) -->
+  <div class="branch-wrapper">
+    <div class="branch">
+      <div>
+        <div class="branch-header" style="color:#4f7df3">Dense Search (pgvector)</div>
+        <div class="step c-blue">
+          <div class="step-header">
+            <div class="step-num">3a</div>
+            <div class="step-title">Vector Search</div>
+            <div class="step-file">db.py</div>
+          </div>
+          <div class="step-body">Cosine similarity between query vector and all stored embeddings. Retrieves top-150 candidates.</div>
+          <div class="example">
+            <div class="example-label">SQL</div>
+            <div class="example-body">ORDER BY embedding <span class="hl-blue">&lt;=&gt;</span> query_vec
+LIMIT 150</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="branch-header" style="color:#a78bfa">Sparse Search (tsvector)</div>
+        <div class="step c-purple">
+          <div class="step-header">
+            <div class="step-num">3b</div>
+            <div class="step-title">Full-Text Search</div>
+            <div class="step-file">db.py</div>
+          </div>
+          <div class="step-body">BM25-style keyword match using Postgres tsvector GIN index. Retrieves top-150 candidates.</div>
+          <div class="example">
+            <div class="example-label">SQL</div>
+            <div class="example-body">WHERE tsv <span class="hl-purple">@@</span> plainto_tsquery('identification requirements owner')
+ORDER BY ts_rank DESC  LIMIT 150</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="merge-arrow">↘ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ↙</div>
+
+  <!-- Step 4: RRF -->
+  <div class="step c-green">
+    <div class="step-header">
+      <div class="step-num">4</div>
+      <div class="step-title">Reciprocal Rank Fusion</div>
+      <div class="step-file">retriever.py</div>
+    </div>
+    <div class="step-body">
+      Results from both searches are merged. Each chunk gets a fused score: <code>0.8 × (1/(60+rank_dense)) + 0.2 × (1/(60+rank_sparse))</code>. Since rerank=true, top <span class="hl">50</span> are kept (k×10).
+    </div>
+    <div class="example">
+      <div class="example-label">Fused ranking (top 5 shown)</div>
+      <div class="example-body"><span class="hl-green">#42</span>  "An Owner must ensure their horse is properly identified..."   score: 0.01287
+<span class="hl-green">#43</span>  "All horses must carry a microchip implanted by an approved vet..."  score: 0.01201
+<span class="hl-green">#11</span>  "The Stewards may at any time require proof of identity..."   score: 0.01098
+<span class="hl-green">#58</span>  "Registration forms for new owners must include..."           score: 0.00934
+<span class="hl-green">#7</span>   "Failure to comply with identification rules may result in..."  score: 0.00821
+...</div>
+    </div>
+  </div>
+
+  <div class="arrow">↓<div class="arrow-label">50 candidates → reranker</div></div>
+
+  <!-- Step 5: Rerank -->
+  <div class="step c-amber">
+    <div class="step-header">
+      <div class="step-num">5</div>
+      <div class="step-title">Cross-Encoder Rerank</div>
+      <div class="step-file">reranker.py</div>
+      <div style="margin-left:8px;font-size:0.7rem;color:var(--muted)">(--rerank only)</div>
+    </div>
+    <div class="step-body">
+      Each of the 50 candidates is scored against the query using <strong>ms-marco-MiniLM-L-6-v2</strong> — a cross-encoder that reads both query and chunk together. More accurate than embedding similarity. Top-5 are kept.
+    </div>
+    <div class="example">
+      <div class="example-label">Reranked top 5</div>
+      <div class="example-body"><span class="hl-amber">#42</span>  score: 8.91  "An Owner must ensure their horse is properly identified..."
+<span class="hl-amber">#11</span>  score: 7.34  "The Stewards may at any time require proof of identity..."
+<span class="hl-amber">#43</span>  score: 6.87  "All horses must carry a microchip implanted by an approved vet..."
+<span class="hl-amber">#58</span>  score: 5.12  "Registration forms for new owners must include..."
+<span class="hl-amber">#7</span>   score: 4.44  "Failure to comply with identification rules may result in..."</div>
+    </div>
+  </div>
+
+  <div class="arrow">↓<div class="arrow-label">top 5 chunks as context</div></div>
+
+  <!-- Step 6: Generate -->
+  <div class="step c-red">
+    <div class="step-header">
+      <div class="step-num">6</div>
+      <div class="step-title">Generate Answer</div>
+      <div class="step-file">generator.py</div>
+    </div>
+    <div class="step-body">
+      The top-5 chunks are passed as context to <strong>MiniMax M2.7</strong> via OpenRouter. The model is instructed to answer only from the provided context and say so if it can't.
+    </div>
+    <div class="example">
+      <div class="example-label">Prompt (simplified)</div>
+      <div class="example-body"><span class="hl-red">&lt;context&gt;</span>
+An Owner must ensure their horse is properly identified before...
+---
+The Stewards may at any time require proof of identity...
+---
+All horses must carry a microchip implanted by an approved vet...
+<span class="hl-red">&lt;/context&gt;</span>
+
+Question: What are the identification requirements for horse owners?</div>
+    </div>
+    <div style="height:10px"></div>
+    <div class="example">
+      <div class="example-label">Final answer returned to user</div>
+      <div class="example-body"><span class="hl-red">"Horse owners are required to ensure their horses are properly identified before any race entry. All horses must carry a microchip implanted by an approved veterinarian. The Stewards may request proof of identity at any time, and failure to comply may result in disciplinary action."</span>
+
+Sources: hkjc_rules_2024.pdf #2 · hkjc_rules_2024.pdf #10 · hkjc_rules_2024.pdf #42</div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<script>
+  function switchTab(name) {
+    document.querySelectorAll('.tab').forEach((t, i) => {
+      t.classList.toggle('active', ['ingest','query'][i] === name);
+    });
+    document.querySelectorAll('.panel').forEach(p => {
+      p.classList.toggle('active', p.id === 'panel-' + name);
+    });
+  }
+</script>
+</body>
+</html>
