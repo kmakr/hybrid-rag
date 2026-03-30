@@ -44,5 +44,6 @@ Question: {query}""",
             },
         ],
     )
+    answer = response.choices[0].message.content or ""
     log.info("Response received.")
-    return response.choices[0].message.content
+    return answer
