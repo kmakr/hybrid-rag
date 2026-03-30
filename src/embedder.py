@@ -1,33 +1,38 @@
-from sentence_transformers import SentenceTransformer
+import os
+
+from dotenv import load_dotenv
+from openai import OpenAI
+from tqdm import tqdm
 
 from src.log import get_logger
 
+load_dotenv()
+
 log = get_logger("embedder")
 
-MODEL_NAME = "all-MiniLM-L6-v2"  # 384 dimensions
+MODEL = "qwen/qwen3-embedding-4b"
+DIMS = 1536
+BATCH_SIZE = 64
 
-_model = None
-
-
-def _get_model():
-    global _model
-    if _model is None:
-        log.info("Loading embedding model '%s' (first run downloads from HuggingFace)...", MODEL_NAME)
-        _model = SentenceTransformer(MODEL_NAME)
-        log.info("Embedding model loaded.")
-    return _model
+client = OpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=os.getenv("OPENROUTER_API_KEY"),
+)
 
 
 def embed_texts(texts: list[str]) -> list[list[float]]:
-    """Embed a batch of texts. Returns list of 384-dim vectors."""
-    model = _get_model()
-    log.info("Embedding %d texts...", len(texts))
-    result = model.encode(texts, show_progress_bar=True, batch_size=128).tolist()
+    """Embed a batch of texts via OpenRouter. Returns list of 2560-dim vectors."""
+    log.info("Embedding %d texts via OpenRouter (%s)...", len(texts), MODEL)
+    embeddings = []
+    for i in tqdm(range(0, len(texts), BATCH_SIZE), desc="Embedding"):
+        batch = texts[i : i + BATCH_SIZE]
+        resp = client.embeddings.create(model=MODEL, input=batch, dimensions=DIMS)
+        embeddings.extend([d.embedding for d in resp.data])
     log.info("Embedding complete.")
-    return result
+    return embeddings
 
 
 def embed_query(query: str) -> list[float]:
     """Embed a single query string."""
-    model = _get_model()
-    return model.encode(query).tolist()
+    resp = client.embeddings.create(model=MODEL, input=query, dimensions=DIMS)
+    return resp.data[0].embedding

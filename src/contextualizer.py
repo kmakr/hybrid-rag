@@ -33,7 +33,7 @@ def situate_context(doc_content: str, chunk_content: str) -> str:
     """Generate a short context snippet for a chunk within its parent document."""
     response = client.chat.completions.create(
         model=MODEL,
-        max_tokens=200,
+        max_tokens=1000,
         temperature=0.0,
         messages=[
             {

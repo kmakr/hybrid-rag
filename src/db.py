@@ -53,17 +53,17 @@ def init_db():
                 full_text TEXT NOT NULL,
                 source_document TEXT,
                 chunk_index INTEGER,
-                embedding vector(384),
+                embedding vector(1536),
                 tsv tsvector GENERATED ALWAYS AS (
                     to_tsvector('english', full_text)
                 ) STORED
             );
         """)
-        log.info("Creating vector index (ivfflat)...")
+        log.info("Creating vector index (hnsw)...")
         cur.execute("""
             CREATE INDEX IF NOT EXISTS chunks_embedding_idx
-            ON chunks USING ivfflat (embedding vector_cosine_ops)
-            WITH (lists = 100);
+            ON chunks USING hnsw (embedding vector_cosine_ops)
+            WITH (m = 16, ef_construction = 64);
         """)
         log.info("Creating full-text search index...")
         cur.execute("""
@@ -181,6 +181,26 @@ def get_chunk_by_id(chunk_id):
         ]
         row = cur.fetchone()
         return dict(zip(columns, row)) if row else None
+
+
+def get_chunks_by_ids(chunk_ids: list[int]) -> list[dict]:
+    """Fetch multiple chunks in a single query, preserving input order."""
+    if not chunk_ids:
+        return []
+    with get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT id, content, contextualized_content, full_text,
+                   source_document, chunk_index
+            FROM chunks WHERE id = ANY(%s)
+            """,
+            (chunk_ids,),
+        )
+        columns = ["id", "content", "contextualized_content", "full_text",
+                   "source_document", "chunk_index"]
+        rows = {row[0]: dict(zip(columns, row)) for row in cur.fetchall()}
+    return [rows[cid] for cid in chunk_ids if cid in rows]
 
 
 def get_all_chunks():

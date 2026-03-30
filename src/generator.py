@@ -1,4 +1,5 @@
 import os
+import time
 
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -22,6 +23,7 @@ def generate_response(query: str, chunks: list[dict]) -> str:
     log.info("Generating response using %s with %d context chunks...", MODEL, len(chunks))
     context = "\n---\n".join([c["full_text"] for c in chunks])
 
+    t0 = time.perf_counter()
     response = client.chat.completions.create(
         model=MODEL,
         max_tokens=1024,
@@ -44,6 +46,8 @@ Question: {query}""",
             },
         ],
     )
+    t1 = time.perf_counter()
+    print(f"[BENCH] llm_generate:   {t1 - t0:.3f}s")
     answer = response.choices[0].message.content or ""
     log.info("Response received.")
     return answer

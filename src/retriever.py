@@ -1,3 +1,5 @@
+import time
+
 from src import db
 from src.embedder import embed_query
 from src.log import get_logger
@@ -12,13 +14,19 @@ def search_hybrid(
     bm25_weight: float = 0.2,
 ) -> list[dict]:
     """Hybrid search using dense (pgvector) + sparse (tsvector) with RRF."""
-    query_embedding = embed_query(query)
+    t0 = time.perf_counter()
 
-    log.info("Running dense (vector) search...")
+    query_embedding = embed_query(query)
+    t1 = time.perf_counter()
+    print(f"[BENCH] embed_query:    {t1 - t0:.3f}s")
+
     dense_results = db.search_dense(query_embedding, k=150)
-    log.info("Running sparse (full-text) search...")
+    t2 = time.perf_counter()
+    print(f"[BENCH] search_dense:   {t2 - t1:.3f}s")
+
     sparse_results = db.search_sparse(query, k=150)
-    log.info("Fusing results with RRF (dense=%d, sparse=%d)...", len(dense_results), len(sparse_results))
+    t3 = time.perf_counter()
+    print(f"[BENCH] search_sparse:  {t3 - t2:.3f}s")
 
     # Reciprocal Rank Fusion
     scores = {}
@@ -29,7 +37,13 @@ def search_hybrid(
         chunk_id = result["id"]
         scores[chunk_id] = scores.get(chunk_id, 0) + bm25_weight / (60 + rank)
 
-    # Sort by fused score, return top-k
     sorted_ids = sorted(scores, key=scores.get, reverse=True)[:k]
-    log.info("Returning top %d chunks.", len(sorted_ids))
-    return [db.get_chunk_by_id(cid) for cid in sorted_ids]
+    t4 = time.perf_counter()
+    print(f"[BENCH] rrf_fusion:     {t4 - t3:.3f}s")
+
+    results = db.get_chunks_by_ids(sorted_ids)
+    t5 = time.perf_counter()
+    print(f"[BENCH] get_chunks:     {t5 - t4:.3f}s")
+    print(f"[BENCH] TOTAL:          {t5 - t0:.3f}s")
+
+    return results
