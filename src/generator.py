@@ -15,7 +15,7 @@ client = OpenAI(
     api_key=os.getenv("OPENROUTER_API_KEY"),
 )
 
-MODEL = "minimax/minimax-m2.7"
+MODEL = "qwen/qwen3-32b:nitro"
 
 
 def generate_response(query: str, chunks: list[dict]) -> str:
