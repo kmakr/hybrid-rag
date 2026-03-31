@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from tqdm import tqdm
 
+from src.config import models
 from src.log import get_logger
 
 load_dotenv()
@@ -17,7 +18,7 @@ client = OpenAI(
     api_key=os.getenv("OPENROUTER_API_KEY"),
 )
 
-MODEL = "minimax/minimax-m2.7"
+MODEL = models["contextualizer"]
 
 DOCUMENT_CONTEXT_PROMPT = """<document>
 {doc_content}

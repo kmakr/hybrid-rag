@@ -4,13 +4,14 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from tqdm import tqdm
 
+from src.config import models
 from src.log import get_logger
 
 load_dotenv()
 
 log = get_logger("embedder")
 
-MODEL = "qwen/qwen3-embedding-4b"
+MODEL = models["embedder"]
 DIMS = 1536
 BATCH_SIZE = 64
 

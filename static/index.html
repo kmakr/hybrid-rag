@@ -768,7 +768,7 @@
     </div>
   </div>
   <div class="header-controls">
-    <span class="tag" id="model-tag">minimax/minimax-m2.7</span>
+    <span class="tag" id="model-tag">loading...</span>
   </div>
 </header>
 
@@ -1251,6 +1251,13 @@
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
   }
+
+  // Fetch model name
+  fetch('/model').then(r => r.json()).then(d => {
+    document.getElementById('model-tag').textContent = d.model;
+  }).catch(() => {
+    document.getElementById('model-tag').textContent = 'unknown';
+  });
 
   // Init data table
   refreshDataTable();

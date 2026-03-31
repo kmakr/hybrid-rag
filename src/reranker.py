@@ -1,10 +1,11 @@
 from sentence_transformers import CrossEncoder
 
+from src.config import models
 from src.log import get_logger
 
 log = get_logger("reranker")
 
-MODEL_NAME = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+MODEL_NAME = models["reranker"]
 
 _model = None
 

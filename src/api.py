@@ -46,6 +46,12 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/model")
+def get_model():
+    from src.config import models
+    return {"model": models["generator"]}
+
+
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
     log.info("Chat request: %r (k=%d, rerank=%s)", req.question, req.k, req.rerank)
