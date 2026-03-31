@@ -3,8 +3,10 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import json
+
 from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -79,6 +81,41 @@ def chat(req: ChatRequest):
         return ChatResponse(answer=answer, sources=unique_sources)
     except Exception as e:
         log.error("Chat error: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/chat/stream")
+def chat_stream(req: ChatRequest):
+    """Stream the LLM response token-by-token via SSE."""
+    log.info("Stream chat request: %r (k=%d, rerank=%s)", req.question, req.k, req.rerank)
+    try:
+        fetch_k = req.k * 10 if req.rerank else req.k
+        from src.retriever import search_hybrid
+        chunks = search_hybrid(req.question, k=fetch_k)
+
+        if req.rerank:
+            from src.reranker import rerank
+            chunks = rerank(req.question, chunks, k=req.k)
+
+        sources = []
+        seen = set()
+        for c in chunks:
+            if c:
+                key = (c.get("source_document", ""), c.get("chunk_index", 0))
+                if key not in seen:
+                    seen.add(key)
+                    sources.append({"document": key[0], "chunk_index": key[1]})
+
+        from src.generator import generate_response_stream
+
+        def event_stream():
+            for token in generate_response_stream(req.question, chunks):
+                yield f"data: {json.dumps({'token': token})}\n\n"
+            yield f"data: {json.dumps({'sources': sources, 'done': True})}\n\n"
+
+        return StreamingResponse(event_stream(), media_type="text/event-stream")
+    except Exception as e:
+        log.error("Stream chat error: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 

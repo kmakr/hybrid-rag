@@ -1186,23 +1186,60 @@
     const rerank = document.getElementById('rerank-toggle').checked;
 
     try {
-      const res = await fetch('/chat', {
+      const res = await fetch('/chat/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question, k, rerank }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Request failed');
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.detail || 'Request failed');
+      }
 
-      // Stop timer
-      if (typingBubble._timerInterval) clearInterval(typingBubble._timerInterval);
+      // Stop thinking indicator once first token arrives
+      let firstToken = true;
+      let fullAnswer = '';
+      let sources = [];
 
-      typingBubble.innerHTML = renderMarkdown(data.answer);
-      if (data.sources && data.sources.length) {
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const payload = JSON.parse(line.slice(6));
+
+          if (payload.token) {
+            if (firstToken) {
+              if (typingBubble._timerInterval) clearInterval(typingBubble._timerInterval);
+              typingBubble.innerHTML = '';
+              firstToken = false;
+            }
+            fullAnswer += payload.token;
+            typingBubble.innerHTML = renderMarkdown(fullAnswer);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+          }
+
+          if (payload.done) {
+            sources = payload.sources || [];
+          }
+        }
+      }
+
+      // Render sources after stream completes
+      if (sources.length) {
         const src = document.createElement('div');
         src.className = 'sources';
         src.innerHTML = `<div class="sources-label">Sources</div>` +
-          data.sources.map(s => `<span class="source-chip">${escHtml(s.document)} #${s.chunk_index}</span>`).join('');
+          sources.map(s => `<span class="source-chip">${escHtml(s.document)} #${s.chunk_index}</span>`).join('');
         typingBubble.appendChild(src);
       }
     } catch (err) {
