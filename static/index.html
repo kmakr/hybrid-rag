@@ -509,6 +509,20 @@
 
     .thinking-timer svg { width: 12px; height: 12px; color: var(--text-muted); flex-shrink: 0; }
 
+    .response-timer {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border-light);
+      font-size: 0.688rem;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .response-timer svg { flex-shrink: 0; color: var(--text-muted); }
+
     .thinking-dots {
       display: flex;
       gap: 4px;
@@ -1067,6 +1081,7 @@
       `;
 
       const timerStart = performance.now();
+      bubble._timerStart = timerStart;
       const timerEl = bubble.querySelector('.timer-value');
       const timerInterval = setInterval(() => {
         const elapsed = ((performance.now() - timerStart) / 1000).toFixed(1);
@@ -1220,6 +1235,7 @@
           if (payload.token) {
             if (firstToken) {
               if (typingBubble._timerInterval) clearInterval(typingBubble._timerInterval);
+              typingBubble._finalTime = ((performance.now() - typingBubble._timerStart) / 1000).toFixed(1);
               typingBubble.innerHTML = '';
               firstToken = false;
             }
@@ -1242,6 +1258,13 @@
           sources.map(s => `<span class="source-chip">${escHtml(s.document)} #${s.chunk_index}</span>`).join('');
         typingBubble.appendChild(src);
       }
+
+      // Show final elapsed time
+      const totalTime = typingBubble._finalTime || ((performance.now() - typingBubble._timerStart) / 1000).toFixed(1);
+      const timerDiv = document.createElement('div');
+      timerDiv.className = 'response-timer';
+      timerDiv.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg> ${totalTime}s`;
+      typingBubble.appendChild(timerDiv);
     } catch (err) {
       if (typingBubble._timerInterval) clearInterval(typingBubble._timerInterval);
       typingBubble.innerHTML = `<span style="color:var(--danger)">${escHtml(err.message)}</span>`;
